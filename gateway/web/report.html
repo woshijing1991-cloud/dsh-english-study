@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#2f6feb">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="/icons/icon-180.png">
+
+<title>周学习报告 · English Study</title>
+<style>
+:root{--bg:#f7f8fa;--card:#fff;--line:#e6e8ee;--tx:#1c1f26;--mut:#6b7280;--acc:#2f6feb;--ok:#12a150;--warn:#d97706}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.6 ui-sans-serif,system-ui,"Segoe UI",sans-serif}
+.wrap{max-width:980px;margin:0 auto;padding:24px 18px 70px}
+header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+h1{font-size:18px;margin:0;font-weight:660}
+.range{font-size:12.5px;color:var(--mut)}
+.nav{margin-left:auto;display:flex;gap:8px}
+a.btn,button.btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 11px;font-size:13px;cursor:pointer;text-decoration:none;color:var(--tx)}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:#fff}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.kpi .l{font-size:12px;color:var(--mut)}
+.kpi .v{font-size:24px;font-weight:690;letter-spacing:-.5px;margin-top:3px}
+.kpi .d{font-size:11.5px;color:var(--mut);margin-top:2px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+.panel h2{font-size:13.5px;margin:0 0 10px;font-weight:640}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips span{background:#f1f4fb;color:#2f4faf;border-radius:7px;padding:4px 9px;font-size:12.5px}
+.chips span i{font-style:normal;color:#8b93a5;font-size:11px;margin-left:4px}
+ul{margin:0;padding-left:18px;font-size:13.5px}
+li{margin:3px 0}
+.muted{color:var(--mut);font-size:13px}
+textarea{width:100%;min-height:150px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:12.5px/1.6 ui-monospace,Consolas,monospace;display:none;margin-top:10px}
+textarea.on{display:block}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>周学习报告</h1>
+    <span class="range" id="range"></span>
+    <div class="nav">
+      <button class="btn" id="prev">上周</button>
+      <button class="btn" id="cur" style="display:none">本周</button>
+      <button class="btn" id="save">保存成 Markdown</button>
+      <a class="btn" href="/">看板</a>
+    </div>
+  </header>
+  <div class="grid" id="kpis"></div>
+  <div class="panel"><h2>本周新词</h2><div class="chips" id="newWords"></div></div>
+  <div class="panel"><h2>最常查的词（本周）</h2><div class="chips" id="topWords"></div></div>
+  <div class="panel"><h2>最常看的视频</h2><ul id="videos"></ul></div>
+  <div class="panel"><h2>下周建议</h2><ul id="advice"></ul></div>
+  <div class="panel"><h2>Markdown 全文</h2><div class="muted">保存后文件在仓库根目录的 <code>reports/</code></div><textarea id="md"></textarea></div>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+let which = 'this';
+const hm = s => { s=+s||0; const h=Math.floor(s/3600), m=Math.round((s%3600)/60); return h ? h+' 小时 '+m+' 分' : m+' 分'; };
+const pct = (a,b) => { if(!b) return '上周无数据'; const d=(a-b)*100/b; return (d>=0?'+':'') + d.toFixed(0) + '% vs 上周'; };
+function esc(s){return String(s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+
+async function load(){
+  const d = await (await fetch('/api/report?week=' + which)).json();
+  $('range').textContent = d.label;
+  $('cur').style.display = which === 'last' ? 'inline-block' : 'none';
+  $('prev').style.display = which === 'last' ? 'none' : 'inline-block';
+  $('kpis').innerHTML = [
+    ['沉浸时长', hm(d.immersion.sec), pct(d.immersion.sec, d.immersion.prev)],
+    ['查词次数', d.lookups.count + ' 次', d.lookups.distinct + ' 个不同词 · ' + pct(d.lookups.count, d.lookups.prev)],
+    ['新增生词', d.new_words.count + ' 个', pct(d.new_words.count, d.new_words.prev)],
+    ['复习', d.reviews.count + ' 次', '正确率 ' + d.reviews.accuracy + '% · 忘了 ' + d.reviews.again + ' 次'],
+    ['收藏句子', d.sentences.count + ' 句', ''],
+    ['听写', d.dictation.count + ' 次', d.dictation.count ? ('平均 ' + d.dictation.avg + ' 分') : ''],
+  ].map(([l,v,dd]) => `<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="d">${dd||''}</div></div>`).join('');
+
+  $('newWords').innerHTML = d.new_words.items.length
+    ? d.new_words.items.map(w=>`<span>${esc(w.lemma)}${w.cefr?'<i>'+esc(w.cefr)+'</i>':''}<i>${esc((w.meaning||'').slice(0,14))}</i></span>`).join('')
+    : '<span class="muted">本周没有新增生词</span>';
+  $('topWords').innerHTML = d.top.length
+    ? d.top.map(t=>`<span>${esc(t.lemma)}<i>×${t.n}</i></span>`).join('')
+    : '<span class="muted">本周没有查词记录</span>';
+  $('videos').innerHTML = d.videos.length ? d.videos.map(v=>`<li>${esc(v.video)} <span class="muted">查词 ${v.n} 次</span></li>`).join('') : '<li class="muted">没有视频记录</li>';
+
+  const adv = [];
+  if(!d.reviews.count) adv.push('本周没有复习：每天 5 分钟过一遍到期词，比反复查新词更值。');
+  else if(d.reviews.accuracy < 70) adv.push('复习正确率 ' + d.reviews.accuracy + '%，偏低：存词时多看一眼原句，复习时先自己想再看答案。');
+  if(d.immersion.sec < 5400) adv.push('沉浸时长不到 1.5 小时：每天 20–30 分钟带字幕输入。');
+  if(!d.dictation.count) adv.push('试一次听写：把本周收藏的句子听写一遍，检验是不是真听懂了。');
+  if(!d.sentences.count) adv.push('把喜欢的台词收藏起来，写作和口语都能用。');
+  if(!adv.length) adv.push('节奏不错，保持住。');
+  $('advice').innerHTML = adv.map(a=>'<li>'+esc(a)+'</li>').join('');
+
+  $('md').value = await (await fetch('/api/report/md?week=' + which)).text();
+}
+
+$('prev').onclick = () => { which='last'; load(); };
+$('cur').onclick = () => { which='this'; load(); };
+$('save').onclick = async () => {
+  const r = await (await fetch('/api/report/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({week:which})})).json();
+  $('md').classList.add('on');
+  $('save').textContent = '已保存 ✓';
+  setTimeout(()=>{ $('save').textContent='保存成 Markdown'; }, 1600);
+  const md = await (await fetch('/api/report/md?week=' + which)).text();
+  $('md').value = md;
+};
+load().catch(()=>{ $('range').textContent = '连不上本地网关（先运行 start-gateway.cmd）'; });
+</script>
+
+<script>if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{});}</script>
+</body>
+</html>

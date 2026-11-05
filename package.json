@@ -1,0 +1,58 @@
+{
+  "name": "dsh-english-study",
+  "version": "0.1.0",
+  "description": "English Study for DeepSeek Harness: watch YouTube, log lookups, build a vocabulary book with SM-2 review, and track immersion time in a dashboard. Local-only, no remote server.",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./lib/client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "lib",
+    "cordis.patch.yml",
+    "gateway",
+    "ext",
+    "start-gateway.cmd",
+    "start-gateway-hidden.cmd",
+    "README.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true
+    }
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "english-study",
+    "vocabulary",
+    "sm-2",
+    "spaced-repetition",
+    "youtube",
+    "language-learning",
+    "local-first"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/woshijing1991-cloud/dsh-english-study.git"
+  },
+  "bugs": {
+    "url": "https://github.com/woshijing1991-cloud/dsh-english-study/issues"
+  },
+  "homepage": "https://github.com/woshijing1991-cloud/dsh-english-study#readme",
+  "author": "CCC (woshijing1991-cloud)",
+  "license": "MIT"
+}

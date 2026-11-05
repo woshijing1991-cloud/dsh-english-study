@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<style>
+  body{margin:0;width:330px;font:13px/1.6 ui-sans-serif,system-ui,"Segoe UI",sans-serif;color:#1c1f26;background:#fbfbfd}
+  .hd{padding:12px 14px;border-bottom:1px solid #eceef3;display:flex;align-items:center;gap:8px}
+  .hd b{font-size:14px}
+  .dot{width:8px;height:8px;border-radius:50%;background:#ccc}
+  .dot.on{background:#12a150}
+  .state{margin-left:auto;font-size:11.5px;color:#6b7280}
+  .kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px 14px}
+  .k{background:#fff;border:1px solid #eceef3;border-radius:10px;padding:9px 11px}
+  .k .l{font-size:11px;color:#6b7280}
+  .k .v{font-size:19px;font-weight:680;letter-spacing:-.3px}
+  .row{display:flex;gap:8px;padding:0 14px 10px}
+  button,a.btn{flex:1;border:1px solid #e4e7ee;background:#fff;border-radius:9px;padding:8px 0;font-size:12.5px;cursor:pointer;text-align:center;text-decoration:none;color:#1c1f26}
+  button:hover,a.btn:hover{border-color:#c9cdd6}
+  .pri{background:#2f6feb;border-color:#2f6feb;color:#fff}
+  .sec{padding:4px 14px 14px}
+  .sec label{display:block;font-size:11.5px;color:#6b7280;margin:8px 0 4px}
+  .sec input{width:100%;border:1px solid #e4e7ee;border-radius:8px;padding:6px 9px;font-size:12.5px;box-sizing:border-box}
+  .tip{font-size:11px;color:#9aa1ad;padding:0 14px 14px}
+  .toggle{display:flex;align-items:center;gap:8px;padding:6px 14px 10px;font-size:12.5px}
+  .toggle input{width:16px;height:16px}
+</style>
+</head>
+<body>
+  <div class="hd"><b>English Study</b><span class="dot" id="dot"></span><span class="state" id="state">检测中…</span></div>
+  <div class="kpis">
+    <div class="k"><div class="l">今日沉浸</div><div class="v" id="imm">—</div></div>
+    <div class="k"><div class="l">今日查词</div><div class="v" id="lk">—</div></div>
+    <div class="k"><div class="l">待复习</div><div class="v" id="due">—</div></div>
+    <div class="k"><div class="l">连续天数</div><div class="v" id="stk">—</div></div>
+  </div>
+  <div class="row"><a class="btn pri" target="_blank" id="openDash">看板</a><a class="btn" target="_blank" id="openReview">复习</a><a class="btn" target="_blank" id="openWords">词库</a></div>
+  <div class="row"><a class="btn" target="_blank" id="openSent">句子</a><a class="btn" target="_blank" id="openDict">听写</a><a class="btn" target="_blank" id="openReport">周报</a></div>
+  <div class="toggle"><input type="checkbox" id="blur"><label for="blur">字幕模糊（听力模式）</label></div>
+  <div class="toggle"><input type="checkbox" id="pauseOnWord" checked><label for="pauseOnWord">点词自动暂停视频</label></div>
+  <div class="toggle"><input type="checkbox" id="hideNative" checked><label for="hideNative">只显示我的字幕（隐藏 YouTube 原生字幕）</label></div>
+  <div id="pageState" style="padding:0 14px 10px;font-size:11.5px;color:#6b7280">页面状态：检测中…</div>
+  <div class="sec">
+    <label>本地网关地址</label>
+    <input id="gw" placeholder="http://127.0.0.1:8788">
+  </div>
+  <div class="tip">打开 YouTube 视频、打开 CC 字幕，底部会出现逐词可点的字幕条；点词即出 AI 解释，Alt+B 切换模糊。</div>
+<script>
+const $ = id => document.getElementById(id);
+let G = 'http://127.0.0.1:8788';
+const fmt = s => s >= 3600 ? (s/3600).toFixed(1) + ' 小时' : Math.round(s/60) + ' 分';
+
+chrome.storage.local.get(['gateway','blur','hideNative','pauseOnWord'], v => {
+  G = v.gateway || G;
+  $('gw').value = G;
+  $('blur').checked = !!v.blur;
+  $('hideNative').checked = v.hideNative !== false;
+  $('pauseOnWord').checked = v.pauseOnWord !== false;
+  boot();
+});
+$('gw').onchange = () => { G = $('gw').value.trim() || G; chrome.storage.local.set({ gateway: G }); boot(); };
+$('blur').onchange = () => chrome.storage.local.set({ blur: $('blur').checked });
+$('hideNative').onchange = () => chrome.storage.local.set({ hideNative: $('hideNative').checked });
+$('pauseOnWord').onchange = () => chrome.storage.local.set({ pauseOnWord: $('pauseOnWord').checked });
+$('openDash').href = G + '/';
+$('openReview').href = G + '/review';
+$('openWords').href = G + '/words';
+$('openSent').href = G + '/sentences';
+$('openDict').href = G + '/dictation';
+$('openReport').href = G + '/report';
+
+async function boot(){
+  $('openDash').href = G + '/'; $('openReview').href = G + '/review'; $('openWords').href = G + '/words';
+  $('openSent').href = G + '/sentences'; $('openDict').href = G + '/dictation'; $('openReport').href = G + '/report';
+  try{
+    const h = await (await fetch(G + '/api/health')).json();
+    $('dot').classList.add('on');
+    $('state').textContent = h.ai ? 'AI 就绪' : '未读到 key';
+    const s = await (await fetch(G + '/api/stats')).json();
+    $('imm').textContent = fmt(s.today.immersion_sec);
+    $('lk').textContent = s.today.lookups;
+    $('due').textContent = s.totals.due;
+    $('stk').textContent = s.totals.streak + ' 天';
+  }catch(e){
+    $('dot').classList.remove('on');
+    $('state').textContent = '网关未启动';
+  }
+  try {
+    chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
+      const tab = tabs && tabs[0];
+      if (!tab || !tab.id) return;
+      chrome.tabs.sendMessage(tab.id, { type: 'status' }, res => {
+        if (chrome.runtime.lastError || !res) {
+          $('pageState').textContent = '页面状态：不是 YouTube 视频页（或扩展没加载）';
+          return;
+        }
+        $('pageState').textContent = res.cues
+          ? ('页面状态：字幕轨已加载 · ' + res.cues + ' 条 ' + (res.lang || ''))
+          : (res.ccText ? '页面状态：用 YouTube CC 字幕兜底（已自动开启）'
+                        : '页面状态：没检测到字幕（视频没有字幕轨，或还没开始播放）');
+      });
+    });
+  } catch (e) {}
+}
+</script>
+</body>
+</html>

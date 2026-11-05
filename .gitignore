@@ -1,0 +1,43 @@
+# ---- 学习数据 / 本地生成物（绝不入库）----
+data/
+*.db
+*.db-wal
+*.db-shm
+*.log
+raw/
+reports/
+yt-cache/
+yt-thumbs/
+yt-tmp/
+
+# ---- 密钥 / 凭据 ----
+.env
+.env.*
+*.pem
+*.key
+.env.local
+cloud.json
+credentials.json
+
+# ---- 依赖 / 构建 ----
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+.pnpm-store/
+dist/
+build/
+
+# ---- 编辑器 / 系统 ----
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+
+# ---- 备份文件 ----
+*.bak
+*.bak-*
+*.orig
+*.rej

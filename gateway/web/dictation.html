@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#2f6feb">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="/icons/icon-180.png">
+
+<title>听写 · English Study</title>
+<style>
+:root{--bg:#f7f8fa;--card:#fff;--line:#e6e8ee;--tx:#1c1f26;--mut:#6b7280;--acc:#2f6feb;--ok:#12a150;--bad:#d93a3a;--warn:#d97706}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.6 ui-sans-serif,system-ui,"Segoe UI",sans-serif}
+.wrap{max-width:760px;margin:0 auto;padding:26px 18px 80px}
+header{display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+h1{font-size:17px;margin:0;font-weight:650}
+.ml{margin-left:auto;font-size:12px;color:var(--mut)}
+a{color:var(--acc);text-decoration:none}
+.setup{display:flex;gap:8px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:14px;flex-wrap:wrap}
+select{border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px;background:#fff}
+button.b{border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px 14px;font-size:13px;cursor:pointer}
+button.pri{background:var(--acc);border-color:var(--acc);color:#fff}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin-bottom:14px}
+.hint{color:var(--mut);font-size:13.5px;min-height:22px}
+.play{display:flex;gap:8px;align-items:center;margin:14px 0}
+.play button{width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:#fff;font-size:18px;cursor:pointer}
+textarea{width:100%;min-height:70px;border:1px solid var(--line);border-radius:10px;padding:11px 13px;font:15px/1.6 ui-sans-serif;resize:vertical}
+.hintline{font-size:12px;color:var(--mut);margin-top:8px}
+.res{margin-top:14px;display:none}
+.res.on{display:block}
+.score{font-size:28px;font-weight:700;letter-spacing:-.5px}
+.score.ok{color:var(--ok)}.score.mid{color:var(--warn)}.score.bad{color:var(--bad)}
+.diff{font-size:15px;line-height:1.8;margin-top:8px;background:#fbfbfd;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.same{color:#334}
+.miss{background:#fde8e8;color:#c22;border-radius:3px;padding:0 2px}
+.extra{background:#eee;color:#888;text-decoration:line-through;border-radius:3px;padding:0 2px}
+.kpis{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap}
+.kpi{flex:1;min-width:120px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.kpi .l{font-size:11.5px;color:var(--mut)}
+.kpi .v{font-size:18px;font-weight:680}
+.empty{text-align:center;color:var(--mut);padding:40px 0}
+
+@media (max-width: 640px){.wrap{padding:16px 12px 60px} input{min-width:0;width:100%}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>听写</h1>
+    <div class="ml"><span id="cnt"></span> · <a href="/">看板</a> · <a href="/sentences">句子</a></div>
+  </header>
+
+  <div class="setup">
+    <select id="kind">
+      <option value="sentence">句子收藏（中文提示 → 听写英文）</option>
+      <option value="word">生词例句（释义提示 → 听写原句）</option>
+    </select>
+    <button class="b pri" id="start">开始 / 换一批</button>
+    <span style="font-size:12px;color:var(--mut)" id="tip"></span>
+  </div>
+
+  <div class="card" id="card" style="display:none">
+    <div class="hint" id="hint"></div>
+    <div class="play"><button id="playBtn" title="听（空格也行）">▶</button><span style="font-size:12px;color:var(--mut)">可以反复听；按 <b>Enter</b> 提交</span></div>
+    <textarea id="input" placeholder="听到什么就写什么…"></textarea>
+    <div class="hintline">英文标点不必完全一致；大小写不敏感。</div>
+    <div class="res" id="res">
+      <div class="score" id="score"></div>
+      <div class="diff" id="diff"></div>
+      <div style="margin-top:10px"><button class="b" id="next">下一句 →</button> <button class="b" id="againBtn">再听一遍</button></div>
+    </div>
+  </div>
+
+  <div class="empty" id="empty">点「开始」拉一批听写题。没有句子时，先去 YouTube 收藏几句。</div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="l">今日听写</div><div class="v" id="kT">0</div></div>
+    <div class="kpi"><div class="l">今日平均分</div><div class="v" id="kA">—</div></div>
+    <div class="kpi"><div class="l">近 7 天</div><div class="v" id="kW">0</div></div>
+  </div>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+let queue = [], idx = 0, cur = null, answered = false;
+function say(text){ const u = new SpeechSynthesisUtterance(text); u.lang='en-GB'; u.rate=.88; speechSynthesis.cancel(); speechSynthesis.speak(u); }
+async function stats(){
+  const s = await (await fetch('/api/dictation/stats')).json();
+  $('kT').textContent = s.today.n; $('kA').textContent = s.today.n ? s.today.avg : '—'; $('kW').textContent = s.week.n + ' 次 · 平均 ' + s.week.avg;
+}
+async function start(){
+  const kind = $('kind').value;
+  const d = await (await fetch('/api/dictation/next?kind=' + kind + '&n=10')).json();
+  queue = d.items || []; idx = 0;
+  $('tip').textContent = queue.length ? ('本批 ' + queue.length + ' 题') : '没有可用的句子';
+  if(!queue.length){ $('card').style.display='none'; $('empty').style.display='block'; $('empty').textContent = kind==='sentence' ? '还没有收藏句子：先在 YouTube 字幕条点「收藏句子」。' : '词库里还没有带例句的词。'; return; }
+  $('empty').style.display='none'; $('card').style.display='block'; render();
+}
+function render(){
+  answered = false; cur = queue[idx];
+  $('res').classList.remove('on');
+  $('input').value = ''; $('input').focus();
+  $('cnt').textContent = (idx+1) + ' / ' + queue.length;
+  $('hint').innerHTML = '<b>提示：</b>' + (cur.hint ? cur.hint.replace(/</g,'&lt;') : '（无提示，纯听力）') + (cur.label ? '　<span style="color:#9aa1ad">· ' + cur.label.replace(/</g,'&lt;') + '</span>' : '');
+  say(cur.text);
+}
+async function submit(){
+  if(answered || !cur) return;
+  answered = true;
+  const body = { kind: cur.kind, ref_id: cur.ref_id, text: cur.text, input: $('input').value };
+  const r = await (await fetch('/api/dictation/check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})).json();
+  $('res').classList.add('on');
+  const sc = $('score');
+  sc.textContent = r.score + ' 分' + (r.correct ? ' · 通过' : ' · 再练');
+  sc.className = 'score ' + (r.score >= 92 ? 'ok' : r.score >= 70 ? 'mid' : 'bad');
+  $('diff').innerHTML = r.diff.map(d=>{
+    if(d.tag === 'equal') return `<span class="same">${esc(d.target)} </span>`;
+    if(d.tag === 'delete') return `<span class="miss">${esc(d.target)} </span>`;
+    if(d.tag === 'insert') return `<span class="extra">${esc(d.input)} </span>`;
+    return `<span class="miss">${esc(d.target)} </span><span class="extra">${esc(d.input)} </span>`;
+  }).join('') + '<div style="margin-top:6px;color:#6b7280;font-size:13px">原文：' + esc(r.target) + '</div>';
+  stats();
+}
+function next(){ idx++; if(idx >= queue.length){ start(); } else { render(); } }
+function esc(s){ return String(s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+$('start').onclick = start;
+$('kind').onchange = start;
+$('playBtn').onclick = () => cur && say(cur.text);
+$('againBtn').onclick = () => cur && say(cur.text);
+$('next').onclick = next;
+$('input').addEventListener('keydown', e=>{
+  if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); answered ? next() : submit(); }
+});
+document.addEventListener('keydown', e=>{ if(e.code === 'Space' && document.activeElement !== $('input')){ e.preventDefault(); cur && say(cur.text); } });
+stats(); start().catch(()=>{ $('empty').textContent = '连不上本地网关（先运行 start-gateway.cmd）'; });
+</script>
+
+<script>if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{});}</script>
+</body>
+</html>

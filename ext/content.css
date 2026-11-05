@@ -1,0 +1,2 @@
+/* 站点级样式不需要：UI 全在 content.js 的 shadow DOM 里。
+   模糊模式由 content.js 动态注入 <style> 控制，便于开关。 */

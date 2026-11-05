@@ -1,0 +1,7 @@
+- insert:
+    - id: dsh-english-study
+      name: 'dsh-english-study'
+      config:
+        basePath: '/dsh-english-study'
+        gateway: 'http://127.0.0.1:8788'
+        defaultTab: 'dashboard'

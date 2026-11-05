@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "English Study",
+  "version": "0.2.0",
+  "description": "看 YouTube 学英语：字幕逐词可点、本地词典、AI 语境解释、生词本 + 间隔复习、沉浸时长统计。",
+  "permissions": ["storage", "scripting"],
+  "host_permissions": [
+    "https://www.youtube.com/*",
+    "http://127.0.0.1:8788/*",
+    "http://localhost:8788/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://www.youtube.com/*"],
+      "js": ["main-world.js"],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": false
+    },
+    {
+      "matches": ["https://www.youtube.com/*"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "background": { "service_worker": "background.js" },
+  "action": { "default_popup": "popup.html", "default_title": "English Study" },
+  "commands": {
+    "toggle-blur": {
+      "suggested_key": { "default": "Alt+B" },
+      "description": "模糊/显示字幕（听力模式）"
+    }
+  }
+}
